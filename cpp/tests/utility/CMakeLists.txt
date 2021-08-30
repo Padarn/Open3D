@@ -3,6 +3,7 @@ target_sources(tests PRIVATE
     FileSystem.cpp
     Helper.cpp
     IJsonConvertible.cpp
+    ISA.cpp
     Logging.cpp
     Timer.cpp
 )

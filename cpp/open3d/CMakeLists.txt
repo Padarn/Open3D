@@ -62,6 +62,7 @@ target_sources(Open3D PRIVATE
     $<TARGET_OBJECTS:ml_contrib>
     $<TARGET_OBJECTS:pipelines>
     $<TARGET_OBJECTS:tpipelines>
+    $<TARGET_OBJECTS:tpipelines_kernel>
     $<TARGET_OBJECTS:utility>
     $<TARGET_OBJECTS:visualization>
 )
@@ -76,6 +77,38 @@ if (BUILD_WEBRTC)
     target_sources(Open3D PRIVATE
         $<TARGET_OBJECTS:webrtc_server>
     )
+endif()
+
+# Perform the workaround linking on all defined object libraries to increase
+# robustness. Non-affected libraries will be automatically skipped.
+if (BUILD_ISPC_MODULE)
+    open3d_ispc_link_object_files(Open3D PRIVATE
+        camera
+        core
+        geometry
+        tgeometry
+        tgeometry_kernel
+        io
+        tio
+        ml_contrib
+        pipelines
+        tpipelines
+        tpipelines_kernel
+        utility
+        visualization
+    )
+
+    if (BUILD_GUI)
+        open3d_ispc_link_object_files(Open3D PRIVATE
+            GUI
+        )
+    endif()
+
+    if (BUILD_WEBRTC)
+        open3d_ispc_link_object_files(Open3D PRIVATE
+            webrtc_server
+        )
+    endif()
 endif()
 
 # Source group for Visual Studio

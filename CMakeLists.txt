@@ -1,10 +1,13 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.19.2)
 # If you're using Ubuntu 18.04, we suggest you install the latest CMake from the
-# official repository https://apt.kitware.com/.  CMake 3.19+ is required to
-# allow linking with OBJECT libraries, to prevent erroneous -gencode option
-# deduplication with CUDA, to simplify generator expressions for selecting
-# compile flags and setting global hardened link flags, and to parse JSON files
-# for downloading files from the open3d_downloads repository.
+# official repository https://apt.kitware.com/.  CMake 3.19+ is required to:
+# - allow linking with OBJECT libraries
+# - prevent erroneous -gencode option deduplication with CUDA
+# - simplify generator expressions for selecting compile flags and setting
+#   global hardened link flags
+# - to parse JSON files for downloading files from the open3d_downloads
+#   repository
+# - use first-class language support for ISPC (3.19.2 patch release required)
 
 if (APPLE)
 set (CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING
@@ -34,6 +37,7 @@ option(BUILD_PYTHON_MODULE        "Build the python module"                  ON 
 option(BUILD_CUDA_MODULE          "Build the CUDA module"                    OFF)
 option(BUILD_COMMON_CUDA_ARCHS    "Build for common CUDA GPUs (for release)" OFF)
 option(BUILD_CACHED_CUDA_MANAGER  "Build the cached CUDA memory manager"     ON )
+option(BUILD_ISPC_MODULE          "Build the ISPC module"                    ON )
 option(BUILD_GUI                  "Builds new GUI"                           ON )
 option(WITH_OPENMP                "Use OpenMP multi-threading"               ON )
 option(WITH_IPPICV                "Use Intel Performance Primitives"         ON )
@@ -311,6 +315,35 @@ if(BUILD_CUDA_MODULE)
     endif()
 endif ()
 
+# Build ISPC module by default if ISPC is available
+if(BUILD_ISPC_MODULE)
+    include(Open3DFetchISPCCompiler)
+    open3d_fetch_ispc_compiler()
+
+    include(Open3DMakeISPCInstructionSets)
+    open3d_make_ispc_instruction_sets(ISPC_ISAS)
+    set(CMAKE_ISPC_INSTRUCTION_SETS ${ISPC_ISAS})
+
+    message(STATUS "Using ISPC instruction sets: ${CMAKE_ISPC_INSTRUCTION_SETS}")
+
+    # TODO Set this option to OFF after testing legacy support
+    option(ISPC_FORCE_LEGACY "Force legacy ISPC language integration over first-class CMake support" ON)
+    mark_as_advanced(ISPC_FORCE_LEGACY)
+    option(ISPC_PRINT_LEGACY_COMPILE_COMMANDS "Prints legacy compile commands on CMake configuration time" ON)
+    mark_as_advanced(ISPC_PRINT_LEGACY_COMPILE_COMMANDS)
+
+    include(Open3DISPC)
+    open3d_ispc_enable_language(ISPC)
+
+    if (CMAKE_ISPC_COMPILER_ID STREQUAL "Intel" AND CMAKE_ISPC_COMPILER_VERSION VERSION_LESS "1.16")
+        message(FATAL_ERROR "ISPC 1.15 and older are not supported. Please upgrade to ISPC 1.16 or newer.")
+    endif()
+
+    if (CMAKE_ISPC_COMPILER_ID STREQUAL "")
+        message(FATAL_ERROR "Unknown ISPC compiler.")
+    endif()
+endif()
+
 # OS specific settings
 if(WIN32)
     # Windows defaults to hidden symbol visibility, override that
@@ -354,6 +387,10 @@ macro(add_source_group module_name)
     source_group("Header Files\\${module_name}" FILES ${MODULE_HEADER_FILES})
     file(GLOB MODULE_SOURCE_FILES "${module_name}/*.cpp")
     source_group("Source Files\\${module_name}" FILES ${MODULE_SOURCE_FILES})
+    file(GLOB MODULE_ISPC_HEADER_FILES "${module_name}/*.isph")
+    source_group("Header Files\\ISPC" FILES ${MODULE_ISPC_HEADER_FILES})
+    file(GLOB MODULE_ISPC_SOURCE_FILES "${module_name}/*.ispc")
+    source_group("Source Files\\ISPC" FILES ${MODULE_ISPC_SOURCE_FILES})
     file(GLOB MODULE_SHADER_FILES "${module_name}/*.glsl")
     source_group("Source Files\\Shader\\GLSL" FILES ${MODULE_SHADER_FILES})
     file(GLOB MODULE_MATERIAL_FILES "${module_name}/*.mat")

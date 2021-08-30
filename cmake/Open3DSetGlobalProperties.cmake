@@ -96,6 +96,11 @@ function(open3d_set_global_properties target)
     endif()
     target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda>")
 
+    # Use faster 32-bit addressing which, however, limits sizes to 4GB
+    target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:ISPC>:--addressing=32>")
+    # This generator expression is supported as well
+    #target_compile_options(${target} PRIVATE "$<$<COMPILE_LANG_AND_ID:ISPC,Intel>:--addressing=32>")
+
     # TBB static version is used
     # See: https://github.com/wjakob/tbb/commit/615d690c165d68088c32b6756c430261b309b79c
     target_compile_definitions(${target} PRIVATE __TBB_LIB_NAME=tbb_static)
